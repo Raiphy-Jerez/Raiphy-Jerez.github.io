@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gym Machine Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #474747;
+            color: #c5c5c5;
+        }
+
+        h1 {
+            color: #cfcfcf;
+        }
+
+        input,
+        button {
+            margin: 10px 0;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        button {
+            cursor: pointer;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .invalidateSetButton {
+            background-color: #FF0000;
+        }
+
+        .invalidateSetButton:hover {
+            background-color: #b30000;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .machine-container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: rgb(34, 34, 34);
+        }
+
+        .usageContainer,
+        .setContainer,
+        .setDetails {
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: rgb(34, 34, 34);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Gym Machine Tracker</h1>
+    <div id="machinesContainer"></div>
+    <button id="addMachineButton" onclick="addMachine()">Add Machine</button>
+    <label for="outputFile">Output File Name:</label>
+    <input type="text" id="outputFile" value="data.json">
+    <button id="downloadButton" onclick="downloadData()" disabled>Download Data</button>
+    <script>
+        let machines = [];
+
+        function addMachine() {
+        const machineContainer = document.createElement('div');
+        machineContainer.className = 'machine-container';
+        machineContainer.innerHTML = `
+            <label for="machineName">Machine Name:</label>
+            <input type="text" class="machineName">
+            <button class="startObservingButton" onclick="startObserving(this)">Start Observing</button>
+            <div class="usageContainer hidden">
+                <label for="usageName">Usage Name:</label>
+                <input type="text" class="usageName">
+                <label for="gender">Gender:</label>
+                <select class="gender">
+                    <option value="None">Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                </select>
+                <label for="ageRange">Age Range:</label>
+                <select class="ageRange">
+                    <option value="None">Age</option>
+                    <option value="18-25">18-25</option>
+                    <option value="26-35">26-35</option>
+                    <option value="36-45">36-45</option>
+                    <option value="46-55">46-55</option>
+                    <option value="56+">56+</option>
+                </select>
+                    <button class="startUsageButton" onclick="startUsage(this)">Start New Usage</button>
+                    <button class="endObservingButton" onclick="endObserving(this)">End Observing</button>
+                    <div class="setContainer hidden">
+                        <button class="startSetButton" onclick="startSet(this)" disabled>Start Set</button>
+                        <button class="endSetButton" onclick="endSet(this)" disabled>End Set</button>
+                        <button class="invalidateSetButton" onclick="invalidateSet(this)" disabled>Invalidate Set</button>
+                        <div class="setDetails hidden">
+                            <label for="reps">Reps:</label>
+                            <input type="number" class="reps">
+                            <label for="weight">Weight:</label>
+                            <input type="number" class="weight">
+                            <button class="recordSetButton" onclick="recordSet(this)">Record Set</button>
+                        </div>
+                        <button class="endUsageButton" onclick="endUsage(this)" disabled>End Usage</button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('machinesContainer').appendChild(machineContainer);
+        }
+
+        function startObserving(button) {
+            const machineContainer = button.parentElement;
+            const machineName = machineContainer.querySelector('.machineName').value;
+            const usageContainer = machineContainer.querySelector('.usageContainer');
+            usageContainer.classList.remove('hidden');
+            const machine = { name: machineName, usages: [] };
+            machines.push(machine);
+            machineContainer.querySelector('.startObservingButton').disabled = true;
+            usageContainer.dataset.machineIndex = machines.length - 1;
+        }
+
+        function startUsage(button) {
+            const usageContainer = button.parentElement;
+            const machineIndex = usageContainer.dataset.machineIndex;
+            const ageRange = usageContainer.querySelector('.ageRange').value;
+            const gender = usageContainer.querySelector('.gender').value;
+
+            machines[machineIndex].currentUsage = { name: usageContainer.querySelector('.usageName').value,gender, ageRange, sets: [] };            usageContainer.querySelector('.setContainer').classList.remove('hidden');
+            usageContainer.querySelector('.startUsageButton').disabled = true;
+            usageContainer.querySelector('.endObservingButton').disabled = true;
+            usageContainer.querySelector('.startSetButton').disabled = false;
+        }
+
+        function startSet(button) {
+            const usageContainer = button.parentElement.parentElement;
+            const machineIndex = usageContainer.dataset.machineIndex;
+            machines[machineIndex].currentUsage.currentSet = { startTime: new Date().toISOString() };
+            button.disabled = true;
+            button.parentElement.querySelector('.endSetButton').disabled = false;
+            button.parentElement.querySelector('.invalidateSetButton').disabled = false;
+        }
+
+        function endSet(button) {
+            const usageContainer = button.parentElement.parentElement;
+            const machineIndex = usageContainer.dataset.machineIndex;
+            machines[machineIndex].currentUsage.currentSet.endTime = new Date().toISOString();
+            button.disabled = true;
+            button.parentElement.querySelector('.invalidateSetButton').disabled = true;
+            button.parentElement.querySelector('.setDetails').classList.remove('hidden');
+        }
+
+        function recordSet(button) {
+            const setContainer = button.parentElement.parentElement;
+            const usageContainer = setContainer.parentElement;
+            const machineIndex = usageContainer.dataset.machineIndex;
+            const reps = setContainer.querySelector('.reps').value;
+            const weight = setContainer.querySelector('.weight').value;
+            Object.assign(machines[machineIndex].currentUsage.currentSet, { reps, weight });
+            machines[machineIndex].currentUsage.sets.push(machines[machineIndex].currentUsage.currentSet);
+            delete machines[machineIndex].currentUsage.currentSet;
+            setContainer.querySelector('.setDetails').classList.add('hidden');
+            setContainer.querySelector('.startSetButton').disabled = false;
+            setContainer.querySelector('.endUsageButton').disabled = false;
+        } function invalidateSet(button) {
+            const setContainer = button.parentElement;
+            setContainer.querySelector('.startSetButton').disabled = false;
+            setContainer.querySelector('.endSetButton').disabled = true;
+            setContainer.querySelector('.invalidateSetButton').disabled = true;
+            setContainer.querySelector('.setDetails').classList.add('hidden');
+        }
+
+        function endUsage(button) {
+            const usageContainer = button.parentElement.parentElement;
+            const machineIndex = usageContainer.dataset.machineIndex;
+            machines[machineIndex].usages.push(machines[machineIndex].currentUsage);
+            delete machines[machineIndex].currentUsage;
+            usageContainer.querySelector('.setContainer').classList.add('hidden');
+            usageContainer.querySelector('.startUsageButton').disabled = false;
+            usageContainer.querySelector('.endObservingButton').disabled = false;
+        }
+
+        function endObserving(button) {
+            const usageContainer = button.parentElement;
+            const machineIndex = usageContainer.dataset.machineIndex;
+            if (machines[machineIndex].currentUsage) {
+                machines[machineIndex].usages.push(machines[machineIndex].currentUsage);
+            }
+            document.getElementById('downloadButton').disabled = false;
+        }
+
+        function downloadData() {
+            const data = JSON.stringify(machines);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = document.getElementById('outputFile').value;
+            a.click();
+            URL.revokeObjectURL(url);
+            document.getElementById('downloadButton').disabled = true;
+        }
+    </script>
+</body>
+
+</html>
